@@ -1,6 +1,6 @@
 const app = require('./server.js');
 
-// ========== LOCAL PORT ==========  //
+// ========== LOCAL PORT  ==========  //
 app.listen(3001);
 
 // ========== DOCKER PORT ==========  //
