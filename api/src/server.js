@@ -29,7 +29,7 @@ app.get("/", (req, res) => {
 });
 
 const shopSeeders = async () => {
-    
+    console.log('test');
 }
 
 // ========== INIT TABLES ==========  //
