@@ -28,6 +28,10 @@ app.get("/", (req, res) => {
     res.status(200).send(200);
 });
 
+const shopSeeders = async () => {
+    
+}
+
 // ========== INIT TABLES ==========  //
 async function initialiseTables() {
     await pg.schema.hasTable("market").then(async (exists) => {
