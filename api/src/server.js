@@ -29,7 +29,9 @@ app.get("/", (req, res) => {
 });
 
 const shopSeeders = async () => {
-    console.log('test');
+    let shop = {};
+    shop.name = 'Delhaize'
+    console.log(shop);
 }
 
 // ========== INIT TABLES ==========  //
