@@ -5,7 +5,6 @@ const http = require("http");
 const Helpers = require("./utils/helpers.js");
 var path = require("path");
 const port = 3000;
-const htmlFile = path.join(__dirname + "/components/index.html");
 
 const pg = require("knex")({
     client: "pg",
@@ -26,7 +25,7 @@ app.use(
 
 // ========== SHOW ALL RECORDS ==========  //
 app.get("/", (req, res) => {
-    res.status(200).sendFile(htmlFile);
+    res.status(200).send(200);
 });
 
 // ========== INIT TABLES ==========  //
@@ -38,11 +37,29 @@ async function initialiseTables() {
                     table.increments();
                     table.uuid("uuid");
                     table.string("product_name");
+                    table.string("product_image");
                     table.string("product_description");
+                    table.string("product_price");
+                    table.string("product_category");
+                    table.string("product_shop_id");
                     table.timestamps(true, true);
                 })
                 .then(async () => {
-                    console.log("Tables are created");
+                    console.log("Product tables are created");
+                });
+        }
+    });
+    await pg.schema.hasTable("market").then(async (exists) => {
+        if (!exists) {
+            await pg.schema
+                .createTable("shops", (table) => {
+                    table.increments();
+                    table.uuid("uuid");
+                    table.string("shop_name");
+                    table.timestamps(true, true);
+                })
+                .then(async () => {
+                    console.log("Shops table are created");
                 });
         }
     });
