@@ -1,2 +1,3 @@
 # market-price-compare
-supermarket price comparator
+supermarket price comparator in your neighboorhood
+
