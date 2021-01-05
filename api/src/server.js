@@ -38,6 +38,11 @@ app.get("/shop/", async (req, res, next) => {
     }
 });
 
+// ========== SEARCH PRODUCT ==========  //
+app.get('/shop/:id', async (req, res) => {
+    searchInAlbertHein(res, req.params.id)
+})
+
 // ========== SEARCH ITEM IN ALL SHOPS ==========  //
 async function getShopItems(res) {
     try {
@@ -100,6 +105,58 @@ async function checkAlbertHein(res) {
         console.log(`Alberthein is scraped`)
         res.send(data)
         console.log('Browser closed')
+        // createProductsInDB(data);
+    })
+}
+
+async function searchInAlbertHein(res, query) {
+    console.log('Searching in alberthein....')
+    const url = `https://www.ah.be/zoeken?query=${query}&page=10`;
+
+    const browser = await puppeteer.launch({
+        // headless: false
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+    const page = await browser.newPage();
+
+    await page.goto(url, {
+        waitUntil: 'networkidle2'
+    });
+
+    let data = await page.evaluate(async () => {
+        let productArray = [];
+        let list = document.querySelectorAll('#search-lane > div');
+
+        for (let e = 1; e < list.length + 1; e++) {
+            let productList = document.querySelectorAll(`#search-lane > div:nth-child(${e}) article`);
+            for (let i = 1; i < productList.length + 1; i++) {
+                let productObj = {};
+
+                let product_name = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) > div+div`);
+                let product_image = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .lazy-image_image__2025k`);
+                let product_description = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price_unitSize__8gRVX`);
+                let product_details = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) a`);
+                let product_price = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price-amount_root__37xv2`);
+                let product_category = document.querySelector('h1#start-of-content');
+                let product_shop_id = '';
+
+                productObj.product_name = product_name ? product_name.innerText : '';
+                productObj.product_image = product_image ? product_image.src : '';
+                productObj.product_description = product_description ? product_description.innerText : '';
+                productObj.product_details = product_details ? product_details.href : '';
+                productObj.product_price = product_price ? product_price.innerText : '';
+                productObj.product_category = product_category ? product_category.innerText : '';
+                productObj.product_shop_id = product_shop_id ? product_shop_id.innerText : '';
+
+                productArray.push(productObj);
+            }
+        }
+        return productArray;
+    })
+    await browser.close().then(() => {
+        console.log(`Search in Alberthein completed`)
+        res.send(data)
+        console.log('Browser closed')
         createProductsInDB(data);
     })
 }
@@ -142,19 +199,19 @@ const shopItemsSeeders = async () => {
         });
 }
 
-const shopSeeders = async () => {
+const shopSeeders = async (name, logo, url) => {
     let shopObj = {
         uuid: Helpers.generateUUID(),
-        shop_name: 'Delhaize',
-        shop_logo: 'https://upload.wikimedia.org/wikipedia/fr/3/34/Delhaize_-_Logo.svg',
-        shop_url: 'https://www.delhaize.be/',
+        shop_name: name,
+        shop_logo: logo,
+        shop_url: url,
     }
 
     const shopItems = await pg
         .table("shops")
         .insert(shopObj)
         .then(async function () {
-            console.log("✅", "Shop seeders");
+            console.log(`${shopObj.shop_name} seeder created`);
             return;
         })
         .catch((e) => {
@@ -189,9 +246,13 @@ async function initialiseTables() {
                 })
                 .then(async () => {
                     shopItemsSeeders();
-                    shopSeeders();
-                    console.log("Shops items tables are created");
-                    console.log("Shops table are created");
+                    shopSeeders('Delhaize', 'https://dhf6qt42idbhy.cloudfront.net/_ui/responsive/theme-delhaize-be/logo/DLL-logo.svg?e1e868fca4ed35a2', 'https://www.delhaize.be/');
+                    shopSeeders('Albert Heijn', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Albert_Heijn_Logo.svg/267px-Albert_Heijn_Logo.svg.png', 'https://www.ah.be/');
+                    shopSeeders('Colruyt', 'https://upload.wikimedia.org/wikipedia/fr/a/a4/Colruyt_France_logo_supermarch%C3%A9.jpg', 'https://www.colruyt.be/');
+                    shopSeeders('Aldi', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Logo_Aldi_Nord.svg/246px-Logo_Aldi_Nord.svg.png', 'https://www.aldi.be/');
+                    shopSeeders('Carrefour', 'https://upload.wikimedia.org/wikipedia/fr/3/3b/Logo_Carrefour.svg', 'https://drive.carrefour.eu/');
+                    console.log("✅", "Shops items tables are created");
+                    console.log("✅", "Shops table are created");
                 });
         }
     });
