@@ -26,7 +26,7 @@ app.get("/", (req, res) => {
     res.sendStatus(200).send(200);
 });
 
-// ========== GET ALL SHOPS ==========  //
+// ========== GET ALL PRODUCTS ==========  //
 app.get("/shop/", async (req, res, next) => {
     // let query = req.params.query;
     storeArr = [];
@@ -38,9 +38,44 @@ app.get("/shop/", async (req, res, next) => {
     }
 });
 
+// ========== ADD A PRODUCTS ==========  //
+app.post("/addshop/", async (req, res, next) => {
+    const getStory = await pg
+    .select("shop_name")
+      .from("shops")
+      .where({ shop_name: req.body.shop_name })
+      .then(async (data) => {
+        if (data.length >= 1) {
+            console.log(req.body.shop_name + ' Already exists in DB.')
+            res.status(500).send();
+        } else {
+            shopSeeders(req.body.shop_name, req.body.shop_logo, req.body.shop_url)
+            console.log(req.body.shop_name + ' added in db');
+            res.status(200).send();
+        }
+      })
+});
+
+// ========== DELETE A PRODUCT ==========  //
+app.delete('/shop/', async (req, res) => {
+    if (req.body.hasOwnProperty('uuid')) {
+      const result = await pg
+      .from('market')
+      .where({uuid: req.body.uuid})
+      .del()
+      .then(function(data){
+          console.log('DELETED RECORD:','product with uuid ' + req.body.uuid + '.');
+          res.json(data);
+      }).catch((e) => res.status(404).send())
+    } else {
+      console.log("DELETE Request does not have an UUID.");
+      res.status(404).send();
+    }
+  })
+
 // ========== SEARCH PRODUCT ==========  //
 app.get('/shop/:id', async (req, res) => {
-    searchInAlbertHein(res, req.params.id)
+    searchProductInDB(res, req.params.id)
 })
 
 // ========== SEARCH ITEM IN ALL SHOPS ==========  //
@@ -69,60 +104,6 @@ async function checkAlbertHein(res) {
         waitUntil: 'networkidle2'
     });
 
-    let data = await page.evaluate(async (Helpers) => {
-        let productArray = [];
-        let list = document.querySelectorAll('#search-lane > div');
-
-        for (let e = 1; e < list.length + 1; e++) {
-            let productList = document.querySelectorAll(`#search-lane > div:nth-child(${e}) article`);
-            for (let i = 1; i < productList.length + 1; i++) {
-                let productObj = {};
-
-                let userId = Helpers
-                let product_name = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) > div+div`);
-                let product_image = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .lazy-image_image__2025k`);
-                let product_description = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price_unitSize__8gRVX`);
-                let product_details = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) a`);
-                let product_price = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price-amount_root__37xv2`);
-                let product_category = document.querySelector('h1#start-of-content');
-                let product_shop_id = '';
-
-                productObj.uuid = userId ? userId : '';
-                productObj.product_name = product_name ? product_name.innerText : '';
-                productObj.product_image = product_image ? product_image.src : '';
-                productObj.product_description = product_description ? product_description.innerText : '';
-                productObj.product_details = product_details ? product_details.href : '';
-                productObj.product_price = product_price ? product_price.innerText : '';
-                productObj.product_category = product_category ? product_category.innerText : '';
-                productObj.product_shop_id = product_shop_id ? product_shop_id.innerText : '';
-
-                productArray.push(productObj);
-            }
-        }
-        return productArray;
-    }, Helpers.generateUUID())
-    await browser.close().then(() => {
-        console.log(`Alberthein is scraped`)
-        res.send(data)
-        console.log('Browser closed')
-        // createProductsInDB(data);
-    })
-}
-
-async function searchInAlbertHein(res, query) {
-    console.log('Searching in alberthein....')
-    const url = `https://www.ah.be/zoeken?query=${query}&page=10`;
-
-    const browser = await puppeteer.launch({
-        // headless: false
-        args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
-    const page = await browser.newPage();
-
-    await page.goto(url, {
-        waitUntil: 'networkidle2'
-    });
-
     let data = await page.evaluate(async () => {
         let productArray = [];
         let list = document.querySelectorAll('#search-lane > div');
@@ -140,6 +121,7 @@ async function searchInAlbertHein(res, query) {
                 let product_category = document.querySelector('h1#start-of-content');
                 let product_shop_id = '';
 
+                productObj.uuid = '';
                 productObj.product_name = product_name ? product_name.innerText : '';
                 productObj.product_image = product_image ? product_image.src : '';
                 productObj.product_description = product_description ? product_description.innerText : '';
@@ -154,21 +136,48 @@ async function searchInAlbertHein(res, query) {
         return productArray;
     })
     await browser.close().then(() => {
-        console.log(`Search in Alberthein completed`)
-        res.send(data)
+        console.log(`Alberthein is scraped`)
+        res.send(addUUId(data))
         console.log('Browser closed')
         createProductsInDB(data);
     })
 }
 
+function addUUId(data) {
+    newData = [];
+    for (const product of data) {
+        product.uuid = Helpers.generateUUID()
+        newData.push(product)
+    }
+    return newData
+}
+
 // ========== DATABASE ==========  //
 async function createProductsInDB(productObj) {
+    await pg.table("market").truncate();
     await pg
         .table("market")
         .insert(productObj)
         .then(async function () {
             console.log("✅", `Products inserted in database.`);
             return;
+        })
+        .catch((e) => {
+            console.log("Error occured: ", e);
+        });
+}
+
+async function searchProductInDB(res, query) {
+    await pg
+        .table("market")
+        .whereRaw('LOWER(product_name) LIKE ?', '%' + query.toLowerCase() + '%')
+        .then(async function (data) {
+            if (data.length >= 1) {
+                res.send(data)
+                return;
+            } else {
+                res.status(404).send()
+            }
         })
         .catch((e) => {
             console.log("Error occured: ", e);
@@ -226,7 +235,7 @@ async function initialiseTables() {
             await pg.schema
                 .createTable("market", (table) => {
                     table.increments();
-                    table.uuid("uuid");
+                    table.uuid("uuid").nullable().unique();;
                     table.string("product_name");
                     table.string("product_image");
                     table.string("product_description");
@@ -238,8 +247,8 @@ async function initialiseTables() {
                 })
                 .createTable("shops", (table) => {
                     table.increments();
-                    table.uuid("uuid");
-                    table.string("shop_name");
+                    table.uuid("uuid").nullable().unique();;
+                    table.string("shop_name").unique();
                     table.string("shop_logo");
                     table.string("shop_url");
                     table.timestamps(true, true);
