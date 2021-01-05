@@ -123,7 +123,7 @@ async function checkAlbertHein(res) {
                 let product_details = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) a`);
                 let product_price = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price-amount_root__37xv2`);
                 let product_category = document.querySelector('h1#start-of-content');
-                let product_shop_id = '';
+                let shops_uuid = '';
 
                 productObj.uuid = '';
                 productObj.product_name = product_name ? product_name.innerText : '';
@@ -132,25 +132,28 @@ async function checkAlbertHein(res) {
                 productObj.product_details = product_details ? product_details.href : '';
                 productObj.product_price = product_price ? product_price.innerText : '';
                 productObj.product_category = product_category ? product_category.innerText : '';
-                productObj.product_shop_id = product_shop_id ? product_shop_id.innerText : '';
+                productObj.shops_uuid = '';
 
                 productArray.push(productObj);
             }
         }
         return productArray;
     })
-    await browser.close().then(() => {
+    await browser.close().then( async () => {
         console.log(`Alberthein is scraped`)
-        res.send(addUUId(data))
         console.log('Browser closed')
-        createProductsInDB(data);
+        
+        let productData = await addUUId(data, 'Albert Heijn')
+        createProductsInDB( productData );
+        res.send( productData )
     })
 }
 
-function addUUId(data) {
+async function addUUId(data, shopName) {
     newData = [];
     for (const product of data) {
         product.uuid = Helpers.generateUUID()
+        product.shops_uuid = await getShopUUID(shopName)
         newData.push(product)
     }
     return newData
@@ -197,14 +200,16 @@ const shopItemsSeeders = async () => {
         product_details: '4 x 25 cl',
         product_price: '€2,19',
         product_category: 'sodas',
-        product_shop_id: '1'
+        shops_uuid: await getShopUUID('Delhaize')
     }
+
+    console.log(productItemObj);
 
     const shopItems = await pg
         .table("market")
         .insert(productItemObj)
         .then(async function () {
-            console.log("✅", "Market items seeders");
+            console.log("✅", "Product seeder created");
             return;
         })
         .catch((e) => {
@@ -224,12 +229,21 @@ const shopSeeders = async (name, logo, url) => {
         .table("shops")
         .insert(shopObj)
         .then(async function () {
-            console.log(`${shopObj.shop_name} seeder created`);
+            console.log(`✅ ${shopObj.shop_name} seeder created`);
             return;
         })
         .catch((e) => {
             console.log("Error occured: ", e);
         });
+}
+
+// ========== GET SHOP UUID ==========  //
+async function getShopUUID(shopName) {
+    let shop = await pg
+        .select(['uuid'])
+        .from('shops')
+        .where({ shop_name: shopName })
+    return shop[0].uuid;
 }
 
 // ========== INIT TABLES ==========  //
@@ -254,7 +268,6 @@ async function initialiseTables() {
                     table.string("product_details");
                     table.string("product_price");
                     table.string("product_category");
-                    table.string("product_shop_id");
                     table
                         .uuid("shops_uuid")
                         .unsigned()
@@ -266,7 +279,6 @@ async function initialiseTables() {
                     table.timestamps(true, true);
                 })
                 .then(async () => {
-                    shopItemsSeeders();
                     shopSeeders('Delhaize', 'https://dhf6qt42idbhy.cloudfront.net/_ui/responsive/theme-delhaize-be/logo/DLL-logo.svg?e1e868fca4ed35a2', 'https://www.delhaize.be/');
                     shopSeeders('Albert Heijn', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Albert_Heijn_Logo.svg/267px-Albert_Heijn_Logo.svg.png', 'https://www.ah.be/');
                     shopSeeders('Colruyt', 'https://upload.wikimedia.org/wikipedia/fr/a/a4/Colruyt_France_logo_supermarch%C3%A9.jpg', 'https://www.colruyt.be/');
