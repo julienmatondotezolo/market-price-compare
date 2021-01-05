@@ -243,6 +243,14 @@ async function initialiseTables() {
                     table.string("product_price");
                     table.string("product_category");
                     table.string("product_shop_id");
+                    table
+                        .uuid("shops_uuid")
+                        .unsigned()
+                        .references("uuid")
+                        .inTable("shops")
+                        .onDelete("CASCADE")
+                        .onUpdate("CASCADE")
+                        .notNullable();
                     table.timestamps(true, true);
                 })
                 .createTable("shops", (table) => {
