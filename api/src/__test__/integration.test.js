@@ -39,7 +39,6 @@ describe('POST /addshop endpoint', () => {
     })
 })
 
-
 // ====================== TEST TO SEARCH A PRODUCT ====================== //
 describe('GET /shop endpoint', () => {
     test('check if you can search a product', async (done) =>{
@@ -54,8 +53,8 @@ describe('GET /shop endpoint', () => {
 })
 
 // ====================== DELETE PRODUCT RECORD BY ID ====================== //
-describe('DELETE /storyblock endpoint', ()=>{
-    test('check if record is deleted', async (done) =>{
+describe('DELETE /shop endpoint', ()=>{
+    test('check if product is deleted', async (done) =>{
         const req = {
             uuid: 'de004fb0-2910-11eb-94dc-9b0137d739c0'
         };

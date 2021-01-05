@@ -41,37 +41,41 @@ app.get("/shop/", async (req, res, next) => {
 // ========== ADD A PRODUCTS ==========  //
 app.post("/addshop/", async (req, res, next) => {
     const getStory = await pg
-    .select("shop_name")
-      .from("shops")
-      .where({ shop_name: req.body.shop_name })
-      .then(async (data) => {
-        if (data.length >= 1) {
-            console.log(req.body.shop_name + ' Already exists in DB.')
-            res.status(500).send();
-        } else {
-            shopSeeders(req.body.shop_name, req.body.shop_logo, req.body.shop_url)
-            console.log(req.body.shop_name + ' added in db');
-            res.status(200).send();
-        }
-      })
+        .select("shop_name")
+        .from("shops")
+        .where({
+            shop_name: req.body.shop_name
+        })
+        .then(async (data) => {
+            if (data.length >= 1) {
+                console.log(req.body.shop_name + ' Already exists in DB.')
+                res.status(500).send();
+            } else {
+                shopSeeders(req.body.shop_name, req.body.shop_logo, req.body.shop_url)
+                console.log(req.body.shop_name + ' added in db');
+                res.status(200).send();
+            }
+        })
 });
 
 // ========== DELETE A PRODUCT ==========  //
 app.delete('/shop/', async (req, res) => {
     if (req.body.hasOwnProperty('uuid')) {
-      const result = await pg
-      .from('market')
-      .where({uuid: req.body.uuid})
-      .del()
-      .then(function(data){
-          console.log('DELETED RECORD:','product with uuid ' + req.body.uuid + '.');
-          res.json(data);
-      }).catch((e) => res.status(404).send())
+        const result = await pg
+            .from('market')
+            .where({
+                uuid: req.body.uuid
+            })
+            .del()
+            .then(function (data) {
+                console.log('DELETED RECORD:', 'product with uuid ' + req.body.uuid + '.');
+                res.json(data);
+            }).catch((e) => res.status(404).send())
     } else {
-      console.log("DELETE Request does not have an UUID.");
-      res.status(404).send();
+        console.log("DELETE Request does not have an UUID.");
+        res.status(404).send();
     }
-  })
+})
 
 // ========== SEARCH PRODUCT ==========  //
 app.get('/shop/:id', async (req, res) => {
@@ -233,6 +237,14 @@ async function initialiseTables() {
     await pg.schema.hasTable("market").then(async (exists) => {
         if (!exists) {
             await pg.schema
+                .createTable("shops", (table) => {
+                    table.increments();
+                    table.uuid("uuid").nullable().unique();;
+                    table.string("shop_name").unique();
+                    table.string("shop_logo");
+                    table.string("shop_url");
+                    table.timestamps(true, true);
+                })
                 .createTable("market", (table) => {
                     table.increments();
                     table.uuid("uuid").nullable().unique();;
@@ -253,14 +265,6 @@ async function initialiseTables() {
                         .notNullable();
                     table.timestamps(true, true);
                 })
-                .createTable("shops", (table) => {
-                    table.increments();
-                    table.uuid("uuid").nullable().unique();;
-                    table.string("shop_name").unique();
-                    table.string("shop_logo");
-                    table.string("shop_url");
-                    table.timestamps(true, true);
-                })
                 .then(async () => {
                     shopItemsSeeders();
                     shopSeeders('Delhaize', 'https://dhf6qt42idbhy.cloudfront.net/_ui/responsive/theme-delhaize-be/logo/DLL-logo.svg?e1e868fca4ed35a2', 'https://www.delhaize.be/');
@@ -268,8 +272,9 @@ async function initialiseTables() {
                     shopSeeders('Colruyt', 'https://upload.wikimedia.org/wikipedia/fr/a/a4/Colruyt_France_logo_supermarch%C3%A9.jpg', 'https://www.colruyt.be/');
                     shopSeeders('Aldi', 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Logo_Aldi_Nord.svg/246px-Logo_Aldi_Nord.svg.png', 'https://www.aldi.be/');
                     shopSeeders('Carrefour', 'https://upload.wikimedia.org/wikipedia/fr/3/3b/Logo_Carrefour.svg', 'https://drive.carrefour.eu/');
-                    console.log("✅", "Shops items tables are created");
-                    console.log("✅", "Shops table are created");
+                    shopItemsSeeders();
+                    console.log("✅", "Shops table is created");
+                    console.log("✅", "Product table is created");
                 });
         }
     });
