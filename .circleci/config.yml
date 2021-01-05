@@ -6,6 +6,13 @@ jobs:
   build: 
     docker: 
       - image: circleci/node:12.18
+      - image: circleci/postgres:9.6.2-alpine
+        auth:
+          username: julienke02
+          password: $DOCKER_PASSWORD # context / project UI env-var reference
+        environment:
+          POSTGRES_USER: example
+          POSTGRES_DB: marketcomparedb
     steps:
       - checkout
 
