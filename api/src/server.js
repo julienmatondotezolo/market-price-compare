@@ -203,8 +203,6 @@ const shopItemsSeeders = async () => {
         shops_uuid: await getShopUUID('Delhaize')
     }
 
-    console.log(productItemObj);
-
     const shopItems = await pg
         .table("market")
         .insert(productItemObj)
@@ -287,6 +285,7 @@ async function initialiseTables() {
                     shopItemsSeeders();
                     console.log("✅", "Shops table is created");
                     console.log("✅", "Product table is created");
+                    process.exit();
                 });
         }
     });
