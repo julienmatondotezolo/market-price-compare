@@ -3,10 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const http = require("http");
 const Helpers = require("./utils/helpers.js");
-var path = require("path");
-const port = 3000;
 const puppeteer = require("puppeteer");
-const $ = require("cheerio");
 
 const pg = require("knex")({
     client: "pg",
@@ -30,12 +27,11 @@ app.get("/", (req, res) => {
 });
 
 // ========== GET ALL SHOPS ==========  //
-app.get("/shop/:query", async (req, res, next) => {
-    let query = req.params.query;
+app.get("/shop/", async (req, res, next) => {
+    // let query = req.params.query;
     storeArr = [];
     try {
-        await getShopItems(res, query);
-        res.send(`Searching prices for: ${query}.`);
+        await getShopItems(res);
     } catch (err) {
         res.end();
         next(err);
@@ -43,12 +39,11 @@ app.get("/shop/:query", async (req, res, next) => {
 });
 
 // ========== SEARCH ITEM IN ALL SHOPS ==========  //
-async function getShopItems(res, query) {
+async function getShopItems(res) {
     try {
         // AlbertHein
         await checkAlbertHein(res);
-        // res.json(storeArr);
-        // res.end();
+
     } catch (error) {
         throw error;
     }
@@ -56,8 +51,8 @@ async function getShopItems(res, query) {
 
 // ========== SEARCH ITEM AIN ALBERTHEIN ==========  //
 async function checkAlbertHein(res) {
-    const base_url = "https://www.ah.be";
-    const url = `https://www.ah.be/producten/frisdrank-sappen-koffie-en-thee/frisdrank?page=1`;
+    console.log('Startscraping alberthein....')
+    const url = `https://www.ah.be/producten/frisdrank-sappen-koffie-en-thee/frisdrank?page=10`;
 
     const browser = await puppeteer.launch({
         // headless: false
@@ -69,15 +64,16 @@ async function checkAlbertHein(res) {
         waitUntil: 'networkidle2'
     });
 
-    let data = await page.evaluate(() => { 
-        let list = document.querySelectorAll('#search-lane > div');
+    let data = await page.evaluate(async (Helpers) => {
         let productArray = [];
+        let list = document.querySelectorAll('#search-lane > div');
 
-        for (let e = 0; e < list.length; e++) {
+        for (let e = 1; e < list.length + 1; e++) {
             let productList = document.querySelectorAll(`#search-lane > div:nth-child(${e}) article`);
-            for (let i = 1; i < productList.length; i++) {
+            for (let i = 1; i < productList.length + 1; i++) {
                 let productObj = {};
 
+                let userId = Helpers
                 let product_name = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) > div+div`);
                 let product_image = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .lazy-image_image__2025k`);
                 let product_description = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price_unitSize__8gRVX`);
@@ -86,6 +82,7 @@ async function checkAlbertHein(res) {
                 let product_category = document.querySelector('h1#start-of-content');
                 let product_shop_id = '';
 
+                productObj.uuid = userId ? userId : '';
                 productObj.product_name = product_name ? product_name.innerText : '';
                 productObj.product_image = product_image ? product_image.src : '';
                 productObj.product_description = product_description ? product_description.innerText : '';
@@ -93,20 +90,34 @@ async function checkAlbertHein(res) {
                 productObj.product_price = product_price ? product_price.innerText : '';
                 productObj.product_category = product_category ? product_category.innerText : '';
                 productObj.product_shop_id = product_shop_id ? product_shop_id.innerText : '';
+
                 productArray.push(productObj);
             }
-       }
-
+        }
         return productArray;
+    }, Helpers.generateUUID())
+    await browser.close().then(() => {
+        console.log(`Alberthein is scraped`)
+        res.send(data)
+        console.log('Browser closed')
+        createProductsInDB(data);
     })
-    await browser.close();
-    console.log(data);
-    // res.send(data)
 }
 
-getShopItems();
-
 // ========== DATABASE ==========  //
+async function createProductsInDB(productObj) {
+    await pg
+        .table("market")
+        .insert(productObj)
+        .then(async function () {
+            console.log("✅", `Products inserted in database.`);
+            return;
+        })
+        .catch((e) => {
+            console.log("Error occured: ", e);
+        });
+}
+
 const shopItemsSeeders = async () => {
     let productItemObj = {
         uuid: Helpers.generateUUID(),
