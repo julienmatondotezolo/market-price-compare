@@ -49,7 +49,7 @@ app.get("/shop/", async (req, res, next) => {
 //     }
 // });
 
-// ========== ADD A PRODUCTS ==========  //
+// ========== ADD A SHOP ==========  //
 app.post("/addshop/", async (req, res, next) => {
     const getStory = await pg
         .select("shop_name")
@@ -60,7 +60,7 @@ app.post("/addshop/", async (req, res, next) => {
         .then(async (data) => {
             if (data.length >= 1) {
                 console.log(req.body.shop_name + ' Already exists in DB.')
-                res.status(500).send();
+                res.status(400).send();
             } else {
                 shopSeeders(req.body.shop_name, req.body.shop_logo, req.body.shop_url)
                 console.log(req.body.shop_name + ' added in db');
@@ -69,8 +69,63 @@ app.post("/addshop/", async (req, res, next) => {
         })
 });
 
-// ========== DELETE A PRODUCT ==========  //
+// ========== DELETE A SHOP ==========  //
 app.delete('/shop/', async (req, res) => {
+    if (req.body.hasOwnProperty('uuid')) {
+        const result = await pg
+            .from('shops')
+            .where({
+                uuid: req.body.uuid
+            })
+            .del()
+            .then(function (data) {
+                console.log('DELETED RECORD:', 'product with uuid ' + req.body.uuid + '.');
+                res.json(data);
+                res.status(200).send();
+            }).catch((e) => res.status(404).send())
+    } else {
+        console.log("DELETE Request does not have an UUID.");
+        res.status(404).send();
+    }
+})
+
+// ========== ADD A PRODUCT ==========  //
+app.post("/addproduct", async (req, res, next) => {
+    await pg
+        .select("uuid")
+        .from("market")
+        .where({
+            uuid: req.body.uuid
+        })
+        .then(async (data) => {
+            if (data.length >= 1) {
+                console.log(req.body.product_name + ' Already exists in DB.')
+                res.status(400).send();
+            } else {
+
+                await pg
+                    .select("uuid")
+                    .from("shops")
+                    .where({
+                        uuid: req.body.shops_uuid
+                    })
+                    .then(async (data) => {
+                        if (data.length >= 1) {
+                            createProductsInDB(req.body)
+                            console.log(req.body.product_name + ' added in db');
+                            res.status(200).send();
+                        } else {
+                            console.log(req.body.product_name + ' Has no shop UUID.')
+                            res.status(400).send();
+                        }
+                    })
+
+            }
+        })
+});
+
+// ========== DELETE A PRODUCT ==========  //
+app.delete('/product/', async (req, res) => {
     if (req.body.hasOwnProperty('uuid')) {
         const result = await pg
             .from('market')
@@ -106,10 +161,10 @@ async function getShopItems(res) {
 }
 
 /**
-* [Function that is scraping all Alberthein products.]
-* @params: /
-* @returns: Array with all products.
-*/
+ * [Function that is scraping all Alberthein products.]
+ * @params: /
+ * @returns: Array with all products.
+ */
 async function checkAlbertHein(res) {
     console.log('Startscraping Albert Heijn....')
     const url = `https://www.ah.be/producten/frisdrank-sappen-koffie-en-thee/frisdrank?page=10`;
@@ -311,10 +366,10 @@ const shopSeeders = async (name, logo, url) => {
 }
 
 /**
-* [Get the UUID of a shop]
-* @params: shopName
-* @returns: shopUUID
-*/
+ * [Get the UUID of a shop]
+ * @params: shopName
+ * @returns: shopUUID
+ */
 
 async function getShopUUID(shopName) {
     let shop = await pg
@@ -327,8 +382,8 @@ async function getShopUUID(shopName) {
 }
 
 /**
-* [Function to initialise all tables and add seeders]
-*/
+ * [Function to initialise all tables and add seeders]
+ */
 async function initialiseTables() {
     await pg.schema.hasTable("market").then(async (exists) => {
         if (!exists) {

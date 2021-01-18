@@ -31,7 +31,7 @@ describe('POST /addshop endpoint', () => {
         };
         try {
             const response = await request.post('/addshop').send(req)
-            expect(response.status).toBe(500)
+            expect(response.status).toBe(400)
             done()
         } catch (error) {
             console.log(error);
