@@ -4,6 +4,9 @@ const bodyParser = require("body-parser");
 const http = require("http");
 const Helpers = require("./utils/helpers.js");
 const puppeteer = require("puppeteer");
+const randomUseragent = require('random-useragent');
+// const puppeteerExtra = require('puppeteer-extra');
+// const pluginStealth = require('puppeteer-extra-plugin-stealth');
 
 const pg = require("knex")({
     client: "pg",
@@ -28,7 +31,6 @@ app.get("/", (req, res) => {
 
 // ========== GET ALL PRODUCTS ==========  //
 app.get("/shop/", async (req, res, next) => {
-    // let query = req.params.query;
     storeArr = [];
     try {
         await getShopItems(res);
@@ -37,6 +39,15 @@ app.get("/shop/", async (req, res, next) => {
         next(err);
     }
 });
+
+// app.get("/shop/colruyt", async (req, res, next) => {
+//     try {
+//         await checkColruyt(res)
+//     } catch (err) {
+//         res.end();
+//         next(err);
+//     }
+// });
 
 // ========== ADD A PRODUCTS ==========  //
 app.post("/addshop/", async (req, res, next) => {
@@ -85,21 +96,26 @@ app.get('/shop/:id', async (req, res) => {
 // ========== SEARCH ITEM IN ALL SHOPS ==========  //
 async function getShopItems(res) {
     try {
-        // AlbertHein
+        // Albert Heijn
         await checkAlbertHein(res);
-
+        // Colruyt
+        // await checkColruyt(res)
     } catch (error) {
         throw error;
     }
 }
 
-// ========== SEARCH ITEM AIN ALBERTHEIN ==========  //
+/**
+* [Function that is scraping all Alberthein products.]
+* @params: /
+* @returns: Array with all products.
+*/
 async function checkAlbertHein(res) {
-    console.log('Startscraping alberthein....')
+    console.log('Startscraping Albert Heijn....')
     const url = `https://www.ah.be/producten/frisdrank-sappen-koffie-en-thee/frisdrank?page=10`;
 
     const browser = await puppeteer.launch({
-        // headless: false
+        headless: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"]
     });
     const page = await browser.newPage();
@@ -122,8 +138,7 @@ async function checkAlbertHein(res) {
                 let product_description = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price_unitSize__8gRVX`);
                 let product_details = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) a`);
                 let product_price = document.querySelector(`#search-lane > div:nth-child(${e}) article:nth-child(${i}) .price-amount_root__37xv2`);
-                let product_category = document.querySelector('h1#start-of-content');
-                let shops_uuid = '';
+                let product_category = document.querySelector('h1#start-of-content').innerText.toLowerCase();
 
                 productObj.uuid = '';
                 productObj.product_name = product_name ? product_name.innerText : '';
@@ -131,7 +146,7 @@ async function checkAlbertHein(res) {
                 productObj.product_description = product_description ? product_description.innerText : '';
                 productObj.product_details = product_details ? product_details.href : '';
                 productObj.product_price = product_price ? product_price.innerText : '';
-                productObj.product_category = product_category ? product_category.innerText : '';
+                productObj.product_category = product_category ? product_category : '';
                 productObj.shops_uuid = '';
 
                 productArray.push(productObj);
@@ -139,13 +154,73 @@ async function checkAlbertHein(res) {
         }
         return productArray;
     })
-    await browser.close().then( async () => {
-        console.log(`Alberthein is scraped`)
+    await browser.close().then(async () => {
+        console.log(`Albert Heijn is scraped`)
         console.log('Browser closed')
-        
+
         let productData = await addUUId(data, 'Albert Heijn')
-        createProductsInDB( productData );
-        res.send( productData )
+        createProductsInDB(productData);
+        res.send(productData);
+    })
+}
+
+async function checkColruyt(res) {
+    console.log('Startscraping colruyt...')
+    const url = `https://www.colruyt.be/nl/producten?categories=354&categories=372&page=1`;
+
+    puppeteerExtra.use(pluginStealth());
+    const browser = await puppeteerExtra.launch({
+        headless: true,
+        slowMo: 10,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+    const page = await browser.newPage();
+
+    await page.setUserAgent(randomUseragent.getRandom())
+    await page.setViewport({
+        width: 1366,
+        height: 768
+    });
+
+    await page.goto(url, {
+        waitUntil: 'networkidle2',
+        timeout: 0
+    });
+
+    await page.waitForNavigation();
+
+    let data = await page.evaluate(async () => {
+        let productArray = [];
+        let list = document.querySelectorAll('.card--article')
+        for (let e = 1; e < list.length + 1; e++) {
+            let productObj = {};
+            let product_name = document.querySelector(`.card--article:nth-child(${e}) .card__text`).innerText.toLowerCase()
+            let product_image = document.querySelector(`.card--article:nth-child(${e}) img`).src;
+            let product_description = document.querySelector(`.card--article:nth-child(${e}) .card__quantity`).innerText
+            let product_details = document.querySelector(`.card--article:nth-child(${e})`).href
+            let product_price = document.querySelector(`.card--article:nth-child(${e})`).dataset.productPrice;
+            let product_category = 'frisdrank'
+
+            productObj.uuid = '';
+            productObj.product_name = product_name ? product_name : '';
+            productObj.product_image = product_image ? product_image : '';
+            productObj.product_description = product_description ? product_description : '';
+            productObj.product_details = product_details ? product_details : '';
+            productObj.product_price = product_price ? product_price : '';
+            productObj.product_category = product_category ? product_category : '';
+            productObj.shops_uuid = '';
+
+            productArray.push(productObj);
+        }
+        return productArray;
+    })
+    await browser.close().then(async () => {
+        console.log(`Colruyt is scraped`)
+        console.log('Browser closed')
+
+        let productData = await addUUId(data, 'Colruyt')
+        createProductsInDB(productData);
+        res.send(productData)
     })
 }
 
@@ -161,7 +236,7 @@ async function addUUId(data, shopName) {
 
 // ========== DATABASE ==========  //
 async function createProductsInDB(productObj) {
-    await pg.table("market").truncate();
+    // await pg.table("market").truncate();
     await pg
         .table("market")
         .insert(productObj)
@@ -235,16 +310,25 @@ const shopSeeders = async (name, logo, url) => {
         });
 }
 
-// ========== GET SHOP UUID ==========  //
+/**
+* [Get the UUID of a shop]
+* @params: shopName
+* @returns: shopUUID
+*/
+
 async function getShopUUID(shopName) {
     let shop = await pg
         .select(['uuid'])
         .from('shops')
-        .where({ shop_name: shopName })
+        .where({
+            shop_name: shopName
+        })
     return shop[0].uuid;
 }
 
-// ========== INIT TABLES ==========  //
+/**
+* [Function to initialise all tables and add seeders]
+*/
 async function initialiseTables() {
     await pg.schema.hasTable("market").then(async (exists) => {
         if (!exists) {
