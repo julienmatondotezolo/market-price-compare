@@ -60,7 +60,7 @@ app.post("/addshop/", async (req, res, next) => {
         .then(async (data) => {
             if (data.length >= 1) {
                 console.log(req.body.shop_name + ' Already exists in DB.')
-                res.status(500).send();
+                res.status(400).send();
             } else {
                 shopSeeders(req.body.shop_name, req.body.shop_logo, req.body.shop_url)
                 console.log(req.body.shop_name + ' added in db');
