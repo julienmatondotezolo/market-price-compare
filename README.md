@@ -59,8 +59,11 @@ npm test
 ## Endpoints
 Run terminal on the API folder.
 
-[/shop](http://localhost:3000/shop/) </br>
-[/shop/:id](http://localhost:3000/shop/id)
+[/shop](http://localhost:3000/shop/) To see all products [ GET ]</br>
+[/shop/:id](http://localhost:3000/shop/id) To search a product by name [ GET ]</br>
+[/shop](http://localhost:3000/shop/id) To delete a shop [ DELETE ]</br>
+[/addproduct](http://localhost:3000/shop/id) To add a product [ POST ] </br>
+[/addshop](http://localhost:3000/shop/id) To add a shop [ POST ] </br>
 
 
 ## Contributing
