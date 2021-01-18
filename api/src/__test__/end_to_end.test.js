@@ -9,7 +9,9 @@ const {
     colors,
     animals
 } = require('unique-names-generator');
-const { product } = require('puppeteer');
+const {
+    product
+} = require('puppeteer');
 const randomName = uniqueNamesGenerator({
     dictionaries: [adjectives, colors]
 });
@@ -73,7 +75,7 @@ describe('DB connection test', () => {
         }),
         test('Try to delete a shop with uuid', async (done) => {
             try {
-                const response = await request.delete('/shop').send( createProduct('40ef5840-592d-11eb-805b-8b312bce25aa') )
+                const response = await request.delete('/shop').send(createProduct('40ef5840-592d-11eb-805b-8b312bce25aa'))
                 expect(response.status).toBe(200)
                 done()
             } catch (error) {
@@ -82,7 +84,7 @@ describe('DB connection test', () => {
         }),
         test('Try to delete a shop without uuid', async (done) => {
             try {
-                const response = await request.delete('/shop').send( {} )
+                const response = await request.delete('/shop').send({})
                 expect(response.status).toBe(404)
                 done()
             } catch (error) {
@@ -91,16 +93,16 @@ describe('DB connection test', () => {
         }),
         test('Add a product to shop', async (done) => {
             try {
-                const response = await request.post('/addproduct').send( createProduct() )
+                const response = await request.post('/addproduct').send(createProduct())
                 expect(response.status).toBe(200)
                 done()
             } catch (error) {
                 console.log("ERROR: ", error);
             }
-        }),
-        test('Add a product to shop that does not exist', async (done) => {
+        })
+    test('Add a product to shop that does not exist', async (done) => {
             try {
-                const response = await request.post('/addproduct').send( createProductWithoutUUID() )
+                const response = await request.post('/addproduct').send(createProductWithoutUUID())
                 expect(response.status).toBe(400)
                 done()
             } catch (error) {
@@ -109,7 +111,7 @@ describe('DB connection test', () => {
         }),
         test('Try to delete a product with uuid', async (done) => {
             try {
-                const response = await request.delete('/product').send( createProduct('40ef5840-592d-11eb-805b-8b312bce25aa') )
+                const response = await request.delete('/product').send(createProduct('40ef5840-592d-11eb-805b-8b312bce25aa'))
                 expect(response.status).toBe(200)
                 done()
             } catch (error) {
@@ -118,11 +120,11 @@ describe('DB connection test', () => {
         }),
         test('Try to delete a product without uuid', async (done) => {
             try {
-                const response = await request.delete('/product').send( {} )
+                const response = await request.delete('/product').send({})
                 expect(response.status).toBe(404)
                 done()
             } catch (error) {
                 console.log("ERROR: ", error);
             }
-        }),
+        })
 })
